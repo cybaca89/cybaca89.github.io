@@ -1,1 +1,272 @@
-Hello World
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, minimum-scale=1.0,
+            initial-scale=1.0, user-scalable=yes">
+        <meta name="author" content="Cy Baca">
+        <title>lkjlkj</title>
+
+
+<script id="material_vshader" type="x-shader/x-vertex">
+#pragma optimize(on)
+precision mediump float;
+attribute vec3 aPosition;
+attribute vec3 aNormal;
+attribute vec2 aTextureCoord;
+
+uniform mat4 uPerspective;
+uniform mat4 uView;
+uniform mat4 uModel;
+uniform mat4 uTransposeInverseModel;
+
+varying vec2 vTextureCoord;
+varying vec3 vNormal;
+varying vec3 vFragPos;
+
+void main() {
+    vFragPos = vec3(uModel * vec4(aPosition, 1.0));
+    vNormal = mat3(uTransposeInverseModel) * aNormal;
+    vTextureCoord = aTextureCoord;
+    gl_Position = uPerspective * uView * uModel * vec4(aPosition, 1.0);
+}
+</script>
+
+<script id="material_fshader" type="x-shader/x-fragment">
+#pragma optimize(on)
+precision mediump float;
+
+struct Material {
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float shine;
+};
+
+struct DirLight {
+    vec3 direction;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+};
+
+struct PointLight {
+    vec3 position;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+
+    float constant;
+    float linear;
+    float quadratic;
+};
+
+float getAttenuation(PointLight pl, vec3 fragpos) {
+    float distance = length(pl.position - fragpos);
+    return 1.0 / (pl.constant + pl.linear + distance + pl.quadratic * (distance * distance));
+}
+
+vec3 calcDirLight(DirLight dl, vec3 norm, vec3 viewDir, Material m)
+{
+    vec3 lightDir = normalize(-dl.direction);
+    float diff = max(dot(norm, lightDir), 0.0);
+    vec3 reflectDir = reflect(-lightDir, norm);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), m.shine);
+
+    vec3 ambient = dl.ambient * m.ambient;
+    vec3 diffuse = dl.diffuse * (diff * m.diffuse);
+    vec3 specular = dl.specular * (spec * m.specular);
+    return (ambient + diffuse + specular);
+}
+
+vec3 calcPointLight(PointLight pl, vec3 fragpos, vec3 norm, vec3 viewDir, Material m)
+{
+    float attenuation = getAttenuation(pl, fragpos);
+    vec3 lightDir = normalize(pl.position - fragpos);
+    float diff = max(dot(norm, lightDir), 0.0);
+    vec3 reflectDir = reflect(-lightDir, norm);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), m.shine);
+    vec3 ambient = pl.ambient * m.ambient;
+    vec3 diffuse = pl.diffuse * (diff * m.diffuse);
+    vec3 specular = pl.specular * (spec * m.specular);
+    ambient *= attenuation;
+    diffuse *= attenuation;
+    specular *= attenuation;
+    return (ambient + diffuse + specular);
+}
+
+
+uniform Material   uMaterial;
+uniform DirLight   uDirLight;
+uniform PointLight uPointLight;
+uniform sampler2D  uTexture;
+uniform vec3       uViewPos;
+uniform bool       uUseTexture;
+
+varying vec3 vNormal;
+varying vec3 vFragPos;
+varying vec2 vTextureCoord;
+
+void main() {
+    vec3 norm    = normalize(vNormal);
+    vec3 viewDir = normalize(uViewPos - vFragPos);
+    vec4 texColor = texture2D(uTexture, vTextureCoord);
+    Material tMaterial = uMaterial;
+    if (uUseTexture) {
+        tMaterial.ambient *= texColor.rgb;
+        tMaterial.diffuse *= texColor.rgb;
+        tMaterial.specular *= texColor.rgb;
+    }
+
+
+    vec3 result  = calcDirLight(uDirLight, norm, viewDir, tMaterial);
+    result += calcPointLight(uPointLight, vFragPos, norm, viewDir, tMaterial);
+
+    gl_FragColor = vec4(result, texColor.a);
+    // gl_FragColor = texture2D(uTexture, vTextureCoord);
+}
+</script>
+
+
+<script id="phong_vshader" type="x-shader/x-vertex">
+#pragma optimize(on)
+precision mediump float;
+attribute vec3 aPosition;
+attribute vec3 aNormal;
+// uniform mat4 uMVP;
+uniform mat4 uPerspective;
+uniform mat4 uView;
+uniform mat4 uModel;
+uniform mat4 uTransposeInverseModel;
+
+varying vec3 vNormal;
+varying vec3 vFragPos;
+
+void main() {
+    // gl_Position = uMVP * aPosition;
+    vFragPos = vec3(uModel * vec4(aPosition, 1.0));
+    vNormal = mat3(uTransposeInverseModel) * aNormal;
+    gl_Position = uPerspective * uView * uModel * vec4(aPosition, 1.0);
+}
+</script>
+
+<script id="phong_fshader" type="x-shader/x-fragment">
+#pragma optimize(on)
+precision mediump float;
+
+uniform vec3 uColor;
+uniform vec3 uLightPos;
+uniform vec3 uLightColor;
+uniform vec3 uViewPos;
+
+varying vec3 vNormal;
+varying vec3 vFragPos;
+
+void main() {
+    vec3 lightDir = normalize(uLightPos - vFragPos);
+    vec3 norm = normalize(vNormal);
+    float ambientStrength = 0.1;
+    float specularStrength = 0.5;
+    float shine = 128.0;
+
+    // ambient lighting
+    vec3 ambient = ambientStrength * uLightColor;
+
+    // diffuse lighting
+    float diff = max(dot(norm, lightDir), 0.0);
+    vec3 diffuse = diff * uLightColor;
+
+    // specular lighting
+    vec3 viewDir = normalize(uViewPos - vFragPos);
+    vec3 reflectDir = reflect(-lightDir, norm);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), shine);
+    vec3 specular = specularStrength * spec * uLightColor;
+
+    vec3 result = (ambient + diffuse + specular) * uColor;
+    gl_FragColor = vec4(result, 1.0);
+}
+</script>
+
+<script id="skybox_vshader" type="x-shader/x-vertex">
+precision mediump float;
+
+attribute vec3 aPosition;
+varying vec3 vTexCoords;
+uniform mat4 uProjection;
+uniform mat4 uView;
+
+void main() {
+    vTexCoords = aPosition;
+    vec4 pos = uProjection * uView * vec4(aPosition, 1.0);
+    gl_Position = pos.xyww;
+}
+</script>
+
+<script id="skybox_fshader" type="x-shader/x-fragment">
+precision mediump float;
+
+varying vec3 vTexCoords;
+uniform samplerCube uCubeMap;
+
+void main() {
+    // gl_FragColor = textureCube(uCubeMap, vTexCoords, 1.0);
+    gl_FragColor = textureCube(uCubeMap, vTexCoords);
+}
+
+</script>
+
+<script id="texture_vshader" type="x-shader/x-vertex">
+precision mediump float;
+attribute vec4 a_position;
+attribute vec2 a_texture;
+uniform mat4 u_model_view_proj;
+
+varying vec2 v_texture;
+void main() {
+    gl_Position = u_model_view_proj * a_position;
+    v_texture= a_texture;
+}
+</script>
+
+<script id="texture_fshader" type="x-shader/x-fragment">
+precision mediump float;
+varying vec2 v_texture;
+uniform sampler2D u_texture;
+void main() {
+    gl_FragColor = texture2D(u_texture, v_texture);
+}
+
+</script>
+
+
+        <script src="js/webgl-utils.js"></script>
+        <script src="js/math/Matrix4.js"></script>
+        <script src="js/math/Vector3.js"></script>
+        <script src="js/Global.js"></script>
+        <script src="js/Shader.js"></script>
+        <script src="js/Timer.js"></script>
+        <script src="js/Cube.js"></script>
+        <script src="js/InputHandler.js"></script>
+        <script src="js/Player.js"></script>
+        <script src="js/Light.js"></script>
+        <script src="js/Entity.js"></script>
+        <script src="js/main.js"></script>
+
+
+<link rel="stylesheet" type="text/css" href="css/style.css"/>
+</head>
+
+<body onload="main()">
+
+    <h1>WebGl Demo</h1>
+        <!-- <div id="canvas_view"> -->
+        <div class="glview">
+            <canvas id="canvas">
+            Please use a browser that supports "canvas"
+            </canvas>
+        </div>
+        <!-- </div> -->
+
+</body>
+</html>
+

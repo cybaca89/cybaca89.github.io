@@ -1,0 +1,57 @@
+/*
+#591781, 4e2c69, ae3557, 6420b1, a946b9
+#181615 #275B6C #45B1C8 #51CFEE #6CDEF1
+pink = #ee0ee8
+purp = #7c0ee8
+blue = #240ee8
+blue - pink scale
+000ee8 - ff0ee8
+*/
+html, body {
+   overflow: hidden;
+   /*height: 100%; */
+}
+
+body {
+   color: #591781;
+   background: #275b6c;
+   margin: 0px;
+   overflow-x: hidden;
+}
+
+.container {
+    margin-right: auto;
+    margin-left: auto;
+    padding-left: 80px;
+    padding-right: 80px;
+    width: 100%;
+    height: 100%;
+    /* position: relative; */
+}
+
+
+#canvas_view {
+    position:   absolute;
+    left:       50%;
+    top:        50%;
+}
+
+/*#canvas { */
+canvas {
+    width:      100%;
+    height:     100%;
+    /*
+    width: 100vw;
+    height: 100vh;
+    960 540
+    */
+    display: block;
+}
+
+#panel {
+    position:   absolute;
+    width:      100%;
+    height:     8%;
+    bottom:     0;
+    opacity:    0.8;
+}
