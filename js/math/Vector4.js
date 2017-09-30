@@ -1,48 +1,50 @@
 "use strict";
-function Vector3(x, y, z) {
+function Vector4(x, y, z, w) {
     this.x = x || 0;
     this.y = y || 0;
     this.z = z || 0;
+    this.w = w || 1;
 };
 
-Vector3.prototype.toArray = function()
+Vector4.prototype.toArray = function()
 {
-    return [ this.x, this.y, this.z ];
+    return [ this.x, this.y, this.z, this.w ];
 };
 
-Vector3.prototype.set = function(v)
+Vector4.prototype.set = function(v)
 {
     this.x = v.x;
     this.y = v.y;
     this.z = v.z;
+    this.w = v.w;
     return this;
 };
 
-Vector3.prototype.setValues = function(x, y, z)
+Vector4.prototype.setValues = function(x, y, z, w)
 {
     this.x = x;
     this.y = y;
     this.z = z;
+    this.w = w || 1;
     return this;
 };
 
-Vector3.prototype.getCross = function(v)
+Vector4.prototype.getCross = function(v)
 {
-    return new Vector3(this.y * v.z - this.z * v.y, this.z * v.x - this.x * v.z, this.x * v.y - this.y * v.x);
-}
+    return new Vector4(this.y * v.z - this.z * v.y,
+                       this.z * v.x - this.x * v.z,
+                       this.x * v.y - this.y * v.x);
+};
 
-Vector3.prototype.cross = function(v)
+Vector4.prototype.cross = function(v)
 {
-    var x = this.y * v.z - this.z * v.y;
-    var y = this.z * v.x - this.x * v.z;
-    var z = this.x * v.y - this.y * v.x;
-    this.x = x;
-    this.y = y;
-    this.z = z;
+    this.x = this.y * v.z - this.z * v.y;
+    this.y = this.z * v.x - this.x * v.z;
+    this.z = this.x * v.y - this.y * v.x;
     return this;
 };
 
-Vector3.prototype.normalize = function()
+Vector4.prototype.normalize = function()
 {
     var rlen = 1 / Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
     this.x *= rlen;
@@ -51,22 +53,22 @@ Vector3.prototype.normalize = function()
     return this;
 };
 
-Vector3.prototype.getLength = function()
+Vector4.prototype.getLength = function()
 {
     return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
 };
 
-Vector3.prototype.dotProduct = function(v)
+Vector4.prototype.dotProduct = function(v)
 {
     return this.x * v.x + this.y * v.y + this.z + v.z;
 };
 
-Vector3.prototype.getProduct = function(v)
+Vector4.prototype.getProduct = function(v)
 {
-    return new Vector3(this.x * v.x, this.y * v.y, this.z * v.z);
+    return new Vector4(this.x * v.x, this.y * v.y, this.z * v.z);
 };
 
-Vector3.prototype.multiply = function(v)
+Vector4.prototype.multiply = function(v)
 {
     this.x *= v.x;
     this.y *= v.y;
@@ -74,7 +76,7 @@ Vector3.prototype.multiply = function(v)
     return this;
 };
 
-Vector3.prototype.multiplyScalar = function(scalar)
+Vector4.prototype.multiplyScalar = function(scalar)
 {
     this.x *= scalar;
     this.y *= scalar;
@@ -82,7 +84,7 @@ Vector3.prototype.multiplyScalar = function(scalar)
     return this;
 };
 
-Vector3.prototype.add = function(v)
+Vector4.prototype.add = function(v)
 {
     this.x += v.x;
     this.y += v.y;
@@ -90,7 +92,7 @@ Vector3.prototype.add = function(v)
     return this;
 };
 
-Vector3.prototype.sub = function(v)
+Vector4.prototype.sub = function(v)
 {
     this.x -= v.x;
     this.y -= v.y;
@@ -98,25 +100,8 @@ Vector3.prototype.sub = function(v)
     return this;
 };
 
-Vector3.prototype.negative = function()
-{
-    var v = new Vector3();
-    v.x = -this.x;
-    v.y = -this.y;
-    v.z = -this.z;
-    return v;
-};
-
-Vector3.prototype.negate = function()
-{
-    this.x = -this.x;
-    this.y = -this.y;
-    this.z = -this.z;
-    return this;
-};
-
     /*
-    Vector3.prototype.multiplyMatrix4 = function(m)
+    Vector4.prototype.multiplyMatrix4 = function(m)
     {
 
         var e = m.elements;

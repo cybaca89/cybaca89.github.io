@@ -1,7 +1,16 @@
 "use strict";
 
 function InputHandler() {
-    // this.pressed = 0x0;
+    this.pressed = 0x0;
+    this.mouseMoved = false;
+    this.movementX = 0;
+    this.movementY = 0;
+    this.lastMoveX = 0;
+    this.lastMoveY = 0;
+    this.lastDownX = 0;
+    this.lastDownY = 0;
+    this.lastReleaseX = 0;
+    this.lastReleaseY = 0;
 };
 
 InputHandler.prototype.isPressed = function(mask)

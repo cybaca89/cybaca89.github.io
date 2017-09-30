@@ -1,165 +1,139 @@
-
-
+"use strict";
 var _gl = null;
 var _canvas = null;
 var _inputHandler = null;
-/** @file header.js
- *  @author Cy Baca
- *
- *  Global constants for checking and settings that state of the program.
+var _defaultScreenRatio = 1920 / 1080;
+// var _gamePaused = false;
+
+/**
+ * Bit masks for key presses. The 'pressed' key at is the only mutable data
+ * on this file, and should only be changed by the Keydown/Keyup callback
+ * functions in init.js
  */
+const KEYBOARD_CONTROL = 0x01;
+const MOUSE_CONTROL = 0x02;
 
-/** Bit masks for key presses. The 'pressed' key at is the only mutable data
- *  on this file, and should only be changed by the Keydown/Keyup callback
- *  functions in init.js
- */
-"use strict";
-var keys = Object.create({}, {
+const KEY_Q = 0x0000001;
+const KEY_W = 0x0000002;
+const KEY_E = 0x0000004;
+const KEY_R = 0x0000008;
 
-    W:         { value: 0x00000001 },
-    S:         { value: 0x00000002 },
-    A:         { value: 0x00000004 },
-    D:         { value: 0x00000008 },
+const KEY_T = 0x0000010;
+const KEY_Y = 0x0000020;
+const KEY_U = 0x0000040;
+const KEY_I = 0x0000080;
 
-    K:         { value: 0x00000010 },
-    J:         { value: 0x00000020 },
-    H:         { value: 0x00000040 },
-    L:         { value: 0x00000080 },
+const KEY_O = 0x0000100;
+const KEY_P = 0x0000200;
+const KEY_A = 0x0000400;
+const KEY_S = 0x0000800;
 
-    UP:        { value: 0x00000100 },
-    LEFT:      { value: 0x00000200 },
-    DOWN:      { value: 0x00000400 },
-    RIGHT:     { value: 0x00000800 },
+const KEY_D = 0x0001000;
+const KEY_F = 0x0002000;
+const KEY_G = 0x0004000;
+const KEY_H = 0x0008000;
 
-    ONE:       { value: 0x00001000 },
-    TWO:       { value: 0x00002000 },
-    THREE:     { value: 0x00004000 },
-    FOUR:      { value: 0x00008000 },
+const KEY_J = 0x0010000;
+const KEY_K = 0x0020000;
+const KEY_L = 0x0040000;
+const KEY_Z = 0x0080000;
 
-    Q:         { value: 0x00010000 },
-    E:         { value: 0x00020000 },
-    SPACE:     { value: 0x00040000 },
-    SHIFT:     { value: 0x00080000 },
+const KEY_X = 0x0100000;
+const KEY_C = 0x0200000;
+const KEY_V = 0x0400000;
+const KEY_B = 0x0800000;
 
-    CLICK:     { value: 0x00100000 },
-    WASD_MASK: { value: 0x0000000f },
-    KJHL_MASK: { value: 0x000000f0 },
-    ARROW_MASK:{ value: 0x00000f00 },
-    ANY_MASK:  { value: ~0x0 },
+const KEY_N = 0x1000000;
+const KEY_M = 0x2000000;
+const KEY_SHIFT = 0x4000000;
+const KEY_SPACE = 0x8000000;
+const MOUSE_CLICK = 0x10000000;
 
+const KEY_ANY = ~0x0;
+const KEY_WASD = 0x1c02;
+const KEY_HJKL = 0x00078000;
 
-    pressed:   { value: 0, writable: true },
-    mouseX: { value: 0, writable: true },
-    mouseY: { value: 0, writable: true },
-
-}); Object.seal(keys);
-
-/** Enum style type definitions to pass to a creator object and make new
- *  instances.
- */
-var types = Object.create({}, {
-
-    CUBE:           { value: 0x00000001 },
-    SPHERE:         { value: 0x00000002 },
-    LIGHT:          { value: 0x00000004 },
-    TEXTURED_CUBE:  { value: 0x00000008 },
-
-}); Object.seal(types);
-
-/** Coefficients/constant declerations for model control and movement
- */
-var coef = Object.create({}, {
-
-    VIEW_LIMIT:    { value: Math.PI / 2 - 0.001 },
-    LOOK_SCALE:    { value: Math.PI / 90 },
-    WALKING_SPEED: { value: 30 },
-
-}); Object.seal(coef);
-
-const TEXTURE_PATH = '../textures/tex01.png';
-
-function ResizeCallback(ev)
+function MouseCoord(x, y)
 {
-    // ratio = window.devicePixelRatio;
-    // canvas.style.width, canvas.style.height are the canvas display size
-    // canvas.width, canvas.height are the size of the drawing buffer
-    // var canvas_view = document.getElementById('canvas_view');
-    // var ratio = window.devicePixelRatio || (1920 / 1080);
+    this.x = x || 0;
+    this.y = y || 0;
+};
 
-    var ratio = 1920 / 1080;
-    var width = window.innerWidth - 100;
-    var height = window.innerHeight - 100;
+MouseCoord.prototype.set = function(x, y)
+{
+    this.x = x;
+    this.y = y;
+    return this;
+};
 
-    var new_ratio = width / height;
-    if (new_ratio > ratio) {
-        width = height * ratio;
-    } else {
-        height = width / ratio;
-    }
-    // canvas_view.style.width = width + 'px';
-    // canvas_view.style.height = height + 'px';
-    // canvas_view.style.marginTop = (-height / 2) + 'px';
-    // canvas_view.style.marginLeft = (-width / 2) + 'px';
-    // canvas_view.style.fontSize = (width / 800) + 'em';
+var _keys = Object.create({}, {
+    pressed: { value: 0, writable: true },
+    mouseMove: { value: false, writable: true },
 
-    _gl.viewport(0, 0, width, height);
-    _canvas.width = width;
-    _canvas.height = height;
+    movement: { value: new MouseCoord(), writable: false },
+    lastMove: { value: new MouseCoord(), writable: false },
+    lastDown: { value: new MouseCoord(), writable: false },
+    lastRelease: { value: new MouseCoord(), writable: false },
+
+}); Object.seal(_keys);
+
+function getMouseMovement()
+{
+    return _keys.movement;
+};
+
+function mouseMoved()
+{
+    var moved = _keys.mouseMove;
+    _keys.mouseMove = false;
+    return moved;
+};
+
+function isPressed(KEY_MASK)
+{
+    return _keys.pressed & KEY_MASK;
 };
 
 function MouseClickCallback(ev)
 {
-    var rect = _canvas.getBoundingClientRect();
-    keys.mouseX = ev.clientX - rect.left;
-    keys.mouseY = ev.clientY - rect.top;
-    keys.pressed |= keys.CLICK;
-    console.log(keys.mouseX, keys.mouseY);
+    _canvas.requestPointerLock();
+};
+
+// https://github.com/toji/webgl-quake3/blob/master/js/main.js#L511
+function MouseMoveCallback(ev)
+{
+    _keys.mouseMove = true;
+    _keys.movement.set(ev.movementX, ev.movementY);
+    _keys.lastMove.set(ev.pageX, ev.pageY);
+};
+
+function MouseDownCallback(ev)
+{
+    _keys.pressed |= MOUSE_CLICK;
+    _keys.lastDown.set(ev.pageX, ev.pageY);
 };
 
 function MouseReleaseCallback(ev)
 {
-    keys.pressed &= ~keys.CLICK;
+    _keys.pressed &= ~MOUSE_CLICK;
+    _keys.lastRelease.set(ev.pageX, ev.pageY);
 };
 
 function KeyDownCallback(ev)
 {
-    console.log(ev.key);
     switch (ev.key) {
-        case 'w': keys.pressed |= keys.W; break;
-        case 'W': keys.pressed |= keys.W; break;
-        case 's': keys.pressed |= keys.S; break;
-        case 'S': keys.pressed |= keys.S; break;
-        case 'a': keys.pressed |= keys.A; break;
-        case 'A': keys.pressed |= keys.A; break;
-        case 'd': keys.pressed |= keys.D; break;
-        case 'D': keys.pressed |= keys.D; break;
-        case 'k': keys.pressed |= keys.K; break;
-        case 'K': keys.pressed |= keys.K; break;
-        case 'j': keys.pressed |= keys.J; break;
-        case 'J': keys.pressed |= keys.J; break;
-        case 'h': keys.pressed |= keys.H; break;
-        case 'H': keys.pressed |= keys.H; break;
-        case 'l': keys.pressed |= keys.L; break;
-        case 'L': keys.pressed |= keys.L; break;
-
-        case '1': keys.pressed |= keys.ONE; break;
-        case '2': keys.pressed |= keys.TWO; break;
-        case '3': keys.pressed |= keys.THREE; break;
-        case '4': keys.pressed |= keys.FOUR; break;
-        case 'q': keys.pressed ^= keys.Q; break;
-        case 'Q': keys.pressed ^= keys.Q; break;
-        case 'e': keys.pressed |= keys.E; break;
-        case 'E': keys.pressed |= keys.E; break;
-        case ' ': keys.pressed |= keys.SPACE; break;
-        case 'Shift': keys.pressed |= keys.SHIFT; break;
-        default: break;
-    }
-
-    switch (ev.keyCode) {
-        case 38: keys.pressed |= keys.UP; break;
-        case 37: keys.pressed |= keys.LEFT; break;
-        case 40: keys.pressed |= keys.DOWN; break;
-        case 39: keys.pressed |= keys.RIGHT; break;
+        case 'q': case 'Q': _keys.pressed |= KEY_Q; break;
+        case 'w': case 'W': _keys.pressed |= KEY_W; break;
+        case 'e': case 'E': _keys.pressed |= KEY_E; break;
+        case 'a': case 'A': _keys.pressed |= KEY_A; break;
+        case 's': case 'S': _keys.pressed |= KEY_S; break;
+        case 'd': case 'D': _keys.pressed |= KEY_D; break;
+        case 'h': case 'H': _keys.pressed |= KEY_H; break;
+        case 'j': case 'J': _keys.pressed |= KEY_J; break;
+        case 'k': case 'K': _keys.pressed |= KEY_K; break;
+        case 'l': case 'L': _keys.pressed |= KEY_L; break;
+        case 'Shift':       _keys.pressed |= KEY_SHIFT; break;
+        case ' ':           _keys.pressed |= KEY_SPACE; break;
         default: break;
     }
 };
@@ -167,39 +141,72 @@ function KeyDownCallback(ev)
 function KeyUpCallback(ev)
 {
     switch (ev.key) {
-        case 'w': keys.pressed &= ~keys.W; break;
-        case 'W': keys.pressed &= ~keys.W; break;
-        case 's': keys.pressed &= ~keys.S; break;
-        case 'S': keys.pressed &= ~keys.S; break;
-        case 'a': keys.pressed &= ~keys.A; break;
-        case 'A': keys.pressed &= ~keys.A; break;
-
-        case 'd': keys.pressed &= ~keys.D; break;
-        case 'D': keys.pressed &= ~keys.D; break;
-        case 'k': keys.pressed &= ~keys.K; break;
-        case 'K': keys.pressed &= ~keys.K; break;
-        case 'j': keys.pressed &= ~keys.J; break;
-        case 'J': keys.pressed &= ~keys.J; break;
-        case 'h': keys.pressed &= ~keys.H; break;
-        case 'H': keys.pressed &= ~keys.H; break;
-        case 'l': keys.pressed &= ~keys.L; break;
-        case 'L': keys.pressed &= ~keys.L; break;
-
-        case '1': keys.pressed &= ~keys.ONE; break;
-        case '2': keys.pressed &= ~keys.TWO; break;
-        case '3': keys.pressed &= ~keys.THREE; break;
-        case '4': keys.pressed &= ~keys.FOUR; break;
-        case 'e': keys.pressed &= ~keys.E; break;
-        case ' ': keys.pressed &= ~keys.SPACE; break;
-        case 'Shift': keys.pressed &= ~keys.SHIFT; break;
-        default: break;
-    }
-
-    switch (ev.keyCode) {
-        case 38: keys.pressed &= ~keys.UP; break;
-        case 37: keys.pressed &= ~keys.LEFT; break;
-        case 40: keys.pressed &= ~keys.DOWN; break;
-        case 39: keys.pressed &= ~keys.RIGHT; break;
+        case 'q': case 'Q': _keys.pressed &= ~KEY_Q; break;
+        case 'w': case 'W': _keys.pressed &= ~KEY_W; break;
+        case 'e': case 'E': _keys.pressed &= ~KEY_E; break;
+        case 'a': case 'A': _keys.pressed &= ~KEY_A; break;
+        case 's': case 'S': _keys.pressed &= ~KEY_S; break;
+        case 'd': case 'D': _keys.pressed &= ~KEY_D; break;
+        case 'h': case 'H': _keys.pressed &= ~KEY_H; break;
+        case 'j': case 'J': _keys.pressed &= ~KEY_J; break;
+        case 'k': case 'K': _keys.pressed &= ~KEY_K; break;
+        case 'l': case 'L': _keys.pressed &= ~KEY_L; break;
+        case 'Shift':       _keys.pressed &= ~KEY_SHIFT; break;
+        case ' ':           _keys.pressed &= ~KEY_SPACE; break;
         default: break;
     }
 };
+
+function ResizeCallback(ev)
+{
+    var width   = window.innerWidth - 100;
+    var height   = window.innerHeight - 100;
+    var newRatio = width / height;
+
+    if (newRatio > _defaultScreenRatio)
+        width = height * _defaultScreenRatio;
+    else
+        height = width / _defaultScreenRatio;
+
+    _gl.viewport(0, 0, width, height);
+    _canvas.width = width;
+    _canvas.height = height;
+};
+
+
+// event types: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget/addEventListener
+function SetEventListeners(canvas)
+{
+    canvas.addEventListener("click", MouseClickCallback, false);
+    canvas.addEventListener("mousedown", MouseDownCallback, false);
+    canvas.addEventListener("mouseup", MouseReleaseCallback, false);
+    canvas.addEventListener("mousemove", MouseMoveCallback, false);
+
+    window.addEventListener("keydown", KeyDownCallback, false);
+    window.addEventListener("keyup", KeyUpCallback, false);
+    window.addEventListener("resize", ResizeCallback, false);
+};
+
+/*
+var crossairVerticesLen = 8;
+var crossair_vertices = new Float32Array([
+//      0.01,  0.01, // tr
+//     -0.01,  0.01, // tl
+//      0.01, -0.01, // br
+//     -0.01, -0.01  // bl
+
+     0.01,  0.01, // tr
+     0.00,  0.01, // tl
+     0.01,  0.00, // br
+     0.00,  0.00,  // bl
+
+     0.00,  0.00, // tr
+    -0.01,  0.00, // tl
+     0.00, -0.01, // br
+    -0.01, -0.01  // bl
+]);
+
+var crossair_color = new Float32Array([
+    0.0, 1.0, 0.3
+]);
+*/
